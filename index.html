@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Rotador de Dashboards</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html, body { margin:0; height:100%; background:#000; }
+    iframe { border:0; width:100vw; height:100vh; }
+    .hidden-cursor { cursor: none; }
+    #notice { position:fixed; bottom:10px; left:10px; background:rgba(0,0,0,.6); color:#fff; padding:6px 10px; font:12px/1.3 system-ui; border-radius:6px; }
+  </style>
+</head>
+<body class="hidden-cursor">
+  <iframe id="frame" src="about:blank" allow="geolocation; microphone; camera; fullscreen"></iframe>
+  <div id="notice">Rotando dashboards…</div>
+
+  <script>
+    // === 1) PON AQUÍ TUS URLs ===
+    // Usa las versiones "embed" o "public" cuando existan (p.ej., ?embed=true).
+    // IMPORTANTE: si una URL bloquea <iframe> por seguridad, no se verá (ver Parte D).
+    const PAGES = [
+      { url: "https://10.234.95.34/index.htm", seconds: 30 },
+      { url: "http://10.234.202.131:3000/?orgId=1&from=now-6h&to=now&timezone=browser", seconds: 30 }
+    ];
+
+    // === 2) REINICIO GENERAL CADA X MINUTOS (0 = desactivado) ===
+    // Útil si notas que el navegador acumula memoria tras muchas horas.
+    const HARD_REFRESH_MINUTES = 0;
+
+    // === No toques nada de aquí hacia abajo ===
+    const frame = document.getElementById('frame');
+    const notice = document.getElementById('notice');
+    let idx = 0, rotTimer = null;
+
+    function show(n) {
+      idx = n % PAGES.length;
+      const page = PAGES[idx];
+      frame.src = page.url;
+      notice.textContent = `Mostrando ${idx+1}/${PAGES.length} — cambia en ${page.seconds || 20}s`;
+
+      if (rotTimer) clearInterval(rotTimer);
+      const dur = Math.max(5, (page.seconds || 20));
+      let remaining = dur;
+      rotTimer = setInterval(() => {
+        remaining--;
+        notice.textContent = `Mostrando ${idx+1}/${PAGES.length} — cambia en ${remaining}s`;
+        if (remaining <= 0) {
+          clearInterval(rotTimer);
+          show((idx + 1) % PAGES.length);
+        }
+      }, 1000);
+    }
+
+    // Intento de mantener la pantalla despierta (si el navegador lo soporta)
+    let wl;
+    async function keepAwake() {
+      try { wl = await navigator.wakeLock.request('screen'); } catch (e) {}
+    }
+    keepAwake();
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') keepAwake();
+    });
+
+    // Reinicio duro periódico (opcional)
+    if (HARD_REFRESH_MINUTES > 0) {
+      setInterval(() => location.reload(), HARD_REFRESH_MINUTES * 60 * 1000);
+    }
+
+    // Arranque
+    if (PAGES.length > 0) show(0);
+  </script>
+</body>
+</html>
